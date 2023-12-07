@@ -1,0 +1,117 @@
+# Dockerfile: https://github.com/dexidp/dex/blob/v2.36.0/Dockerfile
+name: dex
+summary: An image for dex
+description: An image for dex 
+version: "2.36.0"
+base: ubuntu@22.04
+license: Apache-2.0
+platforms:
+  amd64:
+run-user: _daemon_
+services:
+  dex:
+    summary: "dex"
+    override: merge
+    command: /usr/local/bin/docker-entrypoint dex serve "/etc/dex/config.docker.yaml"
+    startup: enabled
+
+parts:
+  security-team-requirement:
+    plugin: nil
+    override-build: |
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/share/rocks
+      (echo "# os-release" && cat /etc/os-release && echo "# dpkg-query" && dpkg-query -f '${db:Status-Abbrev},${binary:Package},${Version},${source:Package},${Source:Version}\n' -W) > ${CRAFT_PART_INSTALL}/usr/share/rocks/dpkg.query
+
+  builder:
+    plugin: go
+    source: https://github.com/dexidp/dex.git
+    source-tag: v2.36.0
+    build-snaps:
+      - go/1.21/stable
+    build-environment:
+      - GO111MODULE: "on"
+      - GOARCH: "amd64"
+      - GOOS: "linux"
+      - GOVARIANT: ""
+    build-packages:
+      - ca-certificates 
+      - openssl
+    override-build: |-
+      # Note: upstream dockerfile uses /user/local/src/dex as workdir, but
+      #       in rockcraft that dir is shared by all parts.  Instead, use
+      #       this part's default dir.
+
+      # Remove the source from the build directory so we don't
+      # accidentally use the wrong inputs.
+      # The build steps below copy everything that is needed to the working directory
+      rm -rf ./*
+
+      cp $CRAFT_PART_SRC/go.mod $CRAFT_PART_SRC/go.sum ./
+      mkdir -p ./api/v2
+      cp $CRAFT_PART_SRC/api/v2/go.mod $CRAFT_PART_SRC/api/v2/go.sum ./api/v2
+      go mod download
+
+      # Now pull in all source
+      cp -r $CRAFT_PART_SRC/* .
+
+      make release-binary
+
+      # Staging directives below are from the bottom of the upstream dockerfile
+
+      # Note: ca-vertificates are copied separately in the add-ca-certificates
+      #       part
+
+      mkdir -p $CRAFT_PART_INSTALL/usr/local/src/dex
+      cp go.mod go.sum $CRAFT_PART_INSTALL/usr/local/src/dex
+      mkdir -p $CRAFT_PART_INSTALL/usr/local/src/dex/api/v2
+      cp api/v2/go.mod api/v2/go.sum $CRAFT_PART_INSTALL/usr/local/src/dex/api/v2/
+
+      mkdir -p $CRAFT_PART_INSTALL/usr/local/bin
+      cp /go/bin/dex $CRAFT_PART_INSTALL/usr/local/bin/dex
+      cp /go/bin/docker-entrypoint $CRAFT_PART_INSTALL/usr/local/bin/docker-entrypoint
+      # ./web is contents pulled directly from the source
+      mkdir -p $CRAFT_PART_INSTALL/srv/dex
+      cp -r web $CRAFT_PART_INSTALL/srv/dex/web
+
+  stager:
+    plugin: nil
+    source: https://github.com/dexidp/dex.git
+    source-tag: v2.36.0
+    override-build: |-
+      # Grant ownership to user 584792, which corresponds to the
+      # _daemon_ user that will be executing in this rock
+      # This is needed because dex wants to write a sqllite db to this dir
+      mkdir -p $CRAFT_PART_INSTALL/var/dex
+      # chown _daemon_:_daemon_ $CRAFT_PART_INSTALL/var/dex
+      chown 584792:584792 $CRAFT_PART_INSTALL/var/dex
+      mkdir -p $CRAFT_PART_INSTALL/etc/dex
+      # chown _daemon_:_daemon_ $CRAFT_PART_INSTALL/etc/dex
+      chown 584792:584792 $CRAFT_PART_INSTALL/etc/dex
+      cp config.docker.yaml $CRAFT_PART_INSTALL/etc/dex/
+
+  gomplate:
+    plugin: nil
+    build-environment:
+      - GOMPLATE_VERSION: v3.11.4
+      - TARGETARCH: "amd64"
+      - TARGETOS: "linux"
+      - TARGETVARIANT: ""
+    build-packages:
+      - wget
+    override-build: |-
+      wget -O gomplate "https://github.com/hairyhenderson/gomplate/releases/download/${GOMPLATE_VERSION}/gomplate_${TARGETOS:-linux}-${TARGETARCH:-amd64}${TARGETVARIANT}"
+      chmod +x gomplate
+
+      # Staging directives below are from the bottom of the upstream dockerfile
+      mkdir -p $CRAFT_PART_INSTALL/usr/local/bin
+      cp gomplate $CRAFT_PART_INSTALL/usr/local/bin/gomplate
+
+  add-ca-certificates:
+    # This installs ca-certificates in the build env to populate our /etc/ssl/certs,
+    # then copies just the ca-certificates.crt to the final image
+    plugin: nil
+    build-packages: 
+      - ca-certificates
+    override-build: |-
+      mkdir -p $CRAFT_PART_INSTALL/etc/ssl/certs/
+      cp /etc/ssl/certs/ca-certificates.crt $CRAFT_PART_INSTALL/etc/ssl/certs/ca-certificates.crt
