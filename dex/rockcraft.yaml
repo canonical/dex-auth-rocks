@@ -1,8 +1,8 @@
-# Dockerfile: https://github.com/dexidp/dex/blob/v2.36.0/Dockerfile
+# Dockerfile: https://github.com/dexidp/dex/blob/v2.31.2/Dockerfile
 name: dex
 summary: An image for dex
 description: An image for dex 
-version: "2.36.0"
+version: "2.31.2"
 base: ubuntu@22.04
 license: Apache-2.0
 platforms:
@@ -25,9 +25,9 @@ parts:
   builder:
     plugin: go
     source: https://github.com/dexidp/dex.git
-    source-tag: v2.36.0
+    source-tag: v2.31.2
     build-snaps:
-      - go/1.21/stable
+      - go/1.17/stable
     build-environment:
       - GO111MODULE: "on"
       - GOARCH: "amd64"
@@ -76,7 +76,7 @@ parts:
   stager:
     plugin: nil
     source: https://github.com/dexidp/dex.git
-    source-tag: v2.36.0
+    source-tag: v2.31.2
     override-build: |-
       # Grant ownership to user 584792, which corresponds to the
       # _daemon_ user that will be executing in this rock
