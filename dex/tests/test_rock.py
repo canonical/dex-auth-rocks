@@ -34,8 +34,8 @@ def test_rock(rock_test_env):
     check_rock = CheckRock("rockcraft.yaml")
     rock_image = check_rock.get_name()
     rock_version = check_rock.get_version()
-    LOCAL_rock_IMAGE = f"{rock_image}:{rock_version}"
+    LOCAL_ROCK_IMAGE = f"{rock_image}:{rock_version}"
 
     # create rock filesystem
-    subprocess.run(["docker", "run", LOCAL_rock_IMAGE, "exec", "ls", "-la", "/usr/local/bin/docker-entrypoint"], check=True)
-    subprocess.run(["docker", "run", LOCAL_rock_IMAGE, "exec", "ls", "-la", "/usr/local/bin/dex"], check=True)
+    subprocess.run(["docker", "run", LOCAL_ROCK_IMAGE, "exec", "ls", "-la", "/usr/local/bin/docker-entrypoint"], check=True)
+    subprocess.run(["docker", "run", LOCAL_ROCK_IMAGE, "exec", "ls", "-la", "/usr/local/bin/dex"], check=True)
