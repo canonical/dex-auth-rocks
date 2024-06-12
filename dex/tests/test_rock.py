@@ -36,6 +36,6 @@ def test_rock(rock_test_env):
     rock_version = check_rock.get_version()
     LOCAL_ROCK_IMAGE = f"{rock_image}:{rock_version}"
 
-    # create ROCK filesystem
+    # create rock filesystem
     subprocess.run(["docker", "run", LOCAL_ROCK_IMAGE, "exec", "ls", "-la", "/usr/local/bin/docker-entrypoint"], check=True)
     subprocess.run(["docker", "run", LOCAL_ROCK_IMAGE, "exec", "ls", "-la", "/usr/local/bin/dex"], check=True)
